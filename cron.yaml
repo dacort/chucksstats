@@ -1,0 +1,4 @@
+cron:
+- description: update the tap list
+  url: /update_beers
+  schedule: every 1 hours synchronized
