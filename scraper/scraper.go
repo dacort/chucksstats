@@ -63,7 +63,7 @@ func (c *Chucks) FetchData(context appengine.Context) (err error) {
 func (c *Chucks) BeerList() (beers []Beer) {
 	// Record the current hour at which we recorded this beer
 	recorded := time.Now().UTC()
-	recorded_hour := recorded.Format("2006-01-02T03:04Z")
+	recorded_hour := recorded.Format("2006-01-02T15:04Z")
 	css_selections := []string{"ul#draft_left li", "ul#draft_right li"}
 
 	// Parse the beers
