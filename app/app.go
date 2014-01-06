@@ -45,17 +45,22 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 	// Caress this into a map of Taps -> Beers
 	tapList := make(map[int][]chucks.Beer)
 	for i := 0; i < len(beers); i++ {
+		c.Debugf("Beer %d is %s", beers[i].Tap, beers[i].Name)
 		tapList[int(beers[i].Tap)] = append(tapList[int(beers[i].Tap)], beers[i])
 	}
 
-	for i := 0; i < len(tapList); i++ {
-		for j := 0; j < len(tapList[i]); j++ {
-			beer := tapList[i][j]
+	c.Debugf("Taplist is %d beers long", len(tapList))
+
+	for _, beers := range tapList {
+		// for i := 0; i < len(tapList); i++ {
+		// c.Debugf("Tap %d", tapList[i][0].Tap)
+		for j := 0; j < len(beers); j++ {
+			beer := beers[j]
 
 			if j == 0 {
 				fmt.Fprintf(w, "Tap %d): %s %s", beer.Tap, strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
 			} else {
-				oldBeer := tapList[i][j-1]
+				oldBeer := beers[j-1]
 				if strings.Trim(oldBeer.Name, " ") != strings.Trim(beer.Name, " ") {
 					fmt.Fprintf(w, ", %s %s", strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
 				}
