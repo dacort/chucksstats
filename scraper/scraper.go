@@ -11,34 +11,14 @@ import (
 	"appengine/urlfetch"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/dacort/chucksstats/chucks"
 )
 
 var url = "http://chucks85th.com/"
 
-const (
-	IPA   = "IPA"
-	Sour  = "Sour"
-	Stout = "Stout"
-	Cider = "Cider"
-)
-
 type Chucks struct {
 	resp *http.Response
-}
-
-type Beer struct {
-	Tap     int64
-	Brewery string
-	Name    string
-
-	ABV        float64
-	PintUSD    float64
-	GrowlerUSD float64
-
-	Type string
-
-	RecordedAtHour string
-	RecordedAt     time.Time
 }
 
 func New() (c *Chucks) {
@@ -60,7 +40,7 @@ func (c *Chucks) FetchData(context appengine.Context) (err error) {
 	return nil
 }
 
-func (c *Chucks) BeerList() (beers []Beer) {
+func (c *Chucks) BeerList() (beers []chucks.Beer) {
 	// Record the current hour at which we recorded this beer
 	recorded := time.Now().UTC()
 	recorded_hour := recorded.Format("2006-01-02T15:04Z")
@@ -85,12 +65,12 @@ func (c *Chucks) BeerList() (beers []Beer) {
 	return beers
 }
 
-func NewBeer(s *goquery.Selection) (b Beer) {
+func NewBeer(s *goquery.Selection) (b chucks.Beer) {
 	b.Type = FindType(s)
 
 	parts := strings.Split(s.Text(), "\n")
-	b.Brewery = parts[2]
-	b.Name = parts[3]
+	b.Brewery = strings.Trim(parts[2], " ")
+	b.Name = strings.Trim(parts[3], " ")
 
 	b.Tap = ExtractInt(parts[1])
 
@@ -103,13 +83,13 @@ func NewBeer(s *goquery.Selection) (b Beer) {
 
 func FindType(s *goquery.Selection) string {
 	if s.HasClass("ipa") {
-		return IPA
+		return chucks.IPA
 	} else if s.HasClass("stout") {
-		return Stout
+		return chucks.Stout
 	} else if s.HasClass("cider") {
-		return Cider
+		return chucks.Cider
 	} else if s.HasClass("sour") {
-		return Sour
+		return chucks.Sour
 	} else {
 		return ""
 	}
