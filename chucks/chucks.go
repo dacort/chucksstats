@@ -31,6 +31,10 @@ type Beer struct {
 	RecordedAt     time.Time
 }
 
+func (b *Beer) FullName() string {
+	return b.Brewery + " " + b.Name
+}
+
 func GetBeersBetween(context appengine.Context, startTime time.Time, endTime time.Time) (beers []Beer) {
 	// Convert start/end times to strings for query
 	startHour := startTime.Format(RecordedAtHourFormat)
