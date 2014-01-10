@@ -1,7 +1,9 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"sort"
 	"strings"
@@ -19,6 +21,26 @@ func init() {
 	http.HandleFunc("/today", beersToday)
 	http.HandleFunc("/update_beers", SaveTheBeer)
 	http.HandleFunc("/thisweek", beersWeekly)
+}
+func unescaped(x string) interface{} { return template.HTML(x) }
+
+var weeklyBeerTemplate = template.Must(template.ParseFiles(
+	"app/weeklybeer.html",
+))
+
+type BarChart struct {
+	Data []BarChartRow
+}
+type BarChartRow struct {
+	Name  string
+	Value int
+}
+type WeeklyBeerVariables struct {
+	TopBreweriesJson string
+	TopStylesJson    string
+
+	MostStaleJson    string
+	FastConsumedJson string
 }
 
 type BeerByTime struct {
@@ -122,21 +144,63 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	beers := chucks.GetBeersBetween(c, weekAgo, today)
 
 	// Build list of beers by brewery
-	breweryList := make(map[string]int)
+	// This is tough because we only want to count a brewery once
+	// per beer, not per *instance* of beer
+	brewAndBeerList := make(map[string][]string)
+	beerAndStyleList := make(map[string][]string)
+
 	for i := 0; i < len(beers); i++ {
-		if _, ok := breweryList[beers[i].Brewery]; ok {
-			breweryList[beers[i].Brewery] += 1
-		} else {
-			breweryList[beers[i].Brewery] = 0
+		beer := beers[i]
+
+		brewery_name := strings.Trim(beer.Brewery, " ")
+		beer_name := strings.Trim(beer.Name, " ")
+		if !stringInSlice(beer_name, brewAndBeerList[brewery_name]) {
+			brewAndBeerList[brewery_name] = append(brewAndBeerList[brewery_name], beer_name)
+		}
+
+		beer_type := beer.Type
+		beer_full_name := strings.Trim(beer.FullName(), " ")
+		if beer_type == "" {
+			beer_type = "Unspecified"
+		}
+		if !stringInSlice(beer_full_name, beerAndStyleList[beer_type]) {
+			beerAndStyleList[beer_type] = append(beerAndStyleList[beer_type], beer_full_name)
 		}
 	}
+	// Calculate the top breweries
+	breweryList := make(map[string]int)
+	for brewery, beers := range brewAndBeerList {
+		breweryList[brewery] = len(beers)
+	}
+	breweryData := BarChart{}
+	sorted := sortMapByValue(breweryList)
+	for i := 0; i < 5; i++ {
+		breweryData.Data = append(breweryData.Data, BarChartRow{sorted[i].Key, sorted[i].Value})
+	}
+	b, _ := json.Marshal(breweryData.Data)
+	topBrewJson := fmt.Sprintf("%s", b)
+
+	// Calculate the top styles
+	styleList := make(map[string]int)
+	for style, beers := range beerAndStyleList {
+		styleList[style] = len(beers)
+	}
+
+	styleData := BarChart{}
+	sorted = sortMapByValue(styleList)
+	for i := 0; i < 5; i++ {
+		styleData.Data = append(styleData.Data, BarChartRow{sorted[i].Key, sorted[i].Value})
+	}
+	b, _ = json.Marshal(styleData.Data)
+	topStyleJson := fmt.Sprintf("%s", b)
 
 	// Build time on Tap for each beer
 	timeOnTapList := make(map[string]BeerByTime)
 	for i := 0; i < len(beers); i++ {
-		if _, ok := timeOnTapList[beers[i].FullName()]; ok {
+		beer_full_name := fmt.Sprintf("%s %s", strings.Trim(beers[i].Brewery, " "), strings.Trim(beers[i].Name, " "))
+		if _, ok := timeOnTapList[beer_full_name]; ok {
 			beer := beers[i]
-			oldBeer := timeOnTapList[beer.FullName()]
+			oldBeer := timeOnTapList[beer_full_name]
 			oldBeer.TotalTime += beer.RecordedAt.Truncate(time.Minute).Sub(oldBeer.LastTimeOn)
 			oldBeer.LastTimeOn = beer.RecordedAt.Truncate(time.Minute)
 
@@ -146,10 +210,10 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Save it back to the map (gotta be a better way?)
-			timeOnTapList[beer.FullName()] = oldBeer
+			timeOnTapList[beer_full_name] = oldBeer
 		} else {
 			beer := beers[i]
-			timeOnTapList[beer.FullName()] = BeerByTime{beer.FullName(), beer.RecordedAt.Truncate(time.Minute), 0, false}
+			timeOnTapList[beer_full_name] = BeerByTime{beer_full_name, beer.RecordedAt.Truncate(time.Minute), time.Duration(60 * time.Minute), false}
 		}
 	}
 	// fmt.Fprintln(w, timeOnTapList)
@@ -158,21 +222,39 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	for _, v := range timeOnTapList {
 		beerByTimeList = append(beerByTimeList, v)
 	}
+
 	sort.Sort(ByStale{beerByTimeList})
-	fmt.Fprintln(w, beerByTimeList[0])
+	staleBeerData := BarChart{}
+	sorted = sortMapByValue(styleList)
+	for i := 0; i < 5; i++ {
+		staleBeerData.Data = append(staleBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours())})
+	}
+	b, _ = json.Marshal(staleBeerData.Data)
+	staleBeerJson := fmt.Sprintf("%s", b)
 
 	sort.Sort(ByFastestConsumption{beerByTimeList})
-	fmt.Fprintln(w, beerByTimeList[0])
+	freshBeerData := BarChart{}
+	sorted = sortMapByValue(styleList)
+	for i := 0; i < 5; i++ {
+		freshBeerData.Data = append(freshBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours())})
+	}
+	b, _ = json.Marshal(freshBeerData.Data)
+	freshBeerJson := fmt.Sprintf("%s", b)
 
+	if err := weeklyBeerTemplate.Execute(w, WeeklyBeerVariables{topBrewJson, topStyleJson, staleBeerJson, freshBeerJson}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	// fmt.Fprintln(w, beerByTimeList[0])
 	// for brewery, count := range breweryList {
 	// 	fmt.Fprintf(w, "%s: %d\n", brewery, count)
 	// }
 
 	// Print out the top 5 brewerys
-	sorted := sortMapByValue(breweryList)
-	for i := 0; i < 5; i++ {
-		fmt.Fprintf(w, "%s: %d\n", sorted[i].Key, sorted[i].Value)
-	}
+	// sorted := sortMapByValue(breweryList)
+	// for i := 0; i < 5; i++ {
+	// 	fmt.Fprintf(w, "%s: %d\n", sorted[i].Key, sorted[i].Value)
+	// }
 }
 
 func beersToday(w http.ResponseWriter, r *http.Request) {
@@ -190,9 +272,9 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 
 	c.Debugf("Taplist is %d beers long", len(tapList))
 
-	for _, beers := range tapList {
-		// for i := 0; i < len(tapList); i++ {
-		// c.Debugf("Tap %d", tapList[i][0].Tap)
+	// We know we have 38 taps, TODO: sort this
+	for i := 1; i <= len(tapList); i++ {
+		beers = tapList[i]
 		for j := 0; j < len(beers); j++ {
 			beer := beers[j]
 
@@ -246,4 +328,13 @@ func SaveTheBeer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
