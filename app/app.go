@@ -41,11 +41,25 @@ type WeeklyBeerVariables struct {
 var indexTemplate = template.Must(template.ParseFiles(
 	"templates/index.html",
 	"templates/bootstrap_base_head.html",
+	"templates/bootstrap_base_foot.html",
 ))
 
 type IndexPageVariables struct {
 	NewBeersToday []chucks.Beer
 	Top5Breweries []string
+}
+
+var fns = template.FuncMap{
+	"join": strings.Join,
+}
+var todayTemplate = template.Must(template.ParseFiles(
+	"templates/today.html",
+	"templates/bootstrap_base_head.html",
+	"templates/bootstrap_base_foot.html",
+))
+
+type TodayPageVariables struct {
+	TapList map[int][]chucks.Beer
 }
 
 // END Templates for each page
@@ -277,6 +291,11 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 
 	todayStart, todayEnd := GetStartAndEndOfToday()
 	tapList := chucks.GetTapToUniqueBeerList(c, todayStart, todayEnd)
+
+	if err := todayTemplate.Execute(w, TodayPageVariables{tapList}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	return
 
 	c.Debugf("Taplist is %d beers long", len(tapList))
 

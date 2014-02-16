@@ -57,6 +57,11 @@ body {
   padding: 30px;
 }
 
+/* Margin for inner content */
+.content {
+  margin-top: 50px;
+}
+
 
 /*
  * Header

@@ -1,0 +1,33 @@
+{{template "bootstrap_base_head" .}}
+  <body>
+    <div class="site-wrapper">
+      <div class="site-wrapper-inner">
+
+        <div class="cover-container">
+
+          <div class="masthead clearfix">
+            <div class="inner">
+              <h3 class="masthead-brand">Chuck's Stats</h3>
+              <ul class="nav masthead-nav">
+                <li class="active"><a href="#">Home</a></li>
+                <li><a href="/today">Today</a></li>
+                <li><a href="/thisweek">This Week</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="inner cover">
+          <div class="col-md-6">
+            <ul class="list-group">
+              {{ range $index, $beers := .TapList}}
+              <li class="list-group-item">Tap {{$index}}) {{ range $beers }} {{ .FullName }}; {{ end }}</li>
+              {{ end }}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{{template "bootstrap_base_foot" .}}
