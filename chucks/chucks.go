@@ -1,6 +1,7 @@
 package chucks
 
 import (
+	"strings"
 	"time"
 
 	"appengine"
@@ -32,6 +33,7 @@ type Beer struct {
 }
 
 func (b *Beer) FullName() string {
+	// strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " ")
 	return b.Brewery + " " + b.Name
 }
 
@@ -55,4 +57,38 @@ func GetBeersBetween(context appengine.Context, startTime time.Time, endTime tim
 	}
 
 	return
+}
+
+// A list of taps and the beers they've contained between a time range
+// Return value is of the form:
+// 1 => [Bud Light, Miller Lite, Piss Water]
+// and guaranteed to be from 1 -> n (taps are 1-indexed)
+func GetTapToUniqueBeerList(context appengine.Context, startTime time.Time, endTime time.Time) (tapMap map[int][]Beer) {
+	beers := GetBeersBetween(context, startTime, endTime)
+	tapMap = make(map[int][]Beer)
+	everythingOnTap := make(map[int][]Beer)
+
+	// Get a list of everything that's been on tap every hour
+	for i := 0; i < len(beers); i++ {
+		everythingOnTap[int(beers[i].Tap)] = append(everythingOnTap[int(beers[i].Tap)], beers[i])
+	}
+
+	// Condense the above list to unique things on tap
+	for i := 1; i <= len(everythingOnTap); i++ {
+		beers := everythingOnTap[i]
+		for j := 0; j < len(beers); j++ {
+			beer := beers[j]
+
+			if j == 0 {
+				tapMap[i] = append(tapMap[i], beer)
+			} else {
+				oldBeer := beers[j-1]
+				if strings.Trim(oldBeer.Name, " ") != strings.Trim(beer.Name, " ") {
+					tapMap[i] = append(tapMap[i], beer)
+				}
+			}
+		}
+	}
+
+	return tapMap
 }

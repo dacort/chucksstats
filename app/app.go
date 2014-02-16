@@ -17,16 +17,38 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/", indexPage)
+	http.HandleFunc("/current", currentText)
 	http.HandleFunc("/today", beersToday)
 	http.HandleFunc("/update_beers", SaveTheBeer)
 	http.HandleFunc("/thisweek", beersWeekly)
 }
 func unescaped(x string) interface{} { return template.HTML(x) }
 
+// Templates for each page
 var weeklyBeerTemplate = template.Must(template.ParseFiles(
 	"app/weeklybeer.html",
 ))
+
+type WeeklyBeerVariables struct {
+	TopBreweriesJson string
+	TopStylesJson    string
+
+	MostStaleJson    string
+	FastConsumedJson string
+}
+
+var indexTemplate = template.Must(template.ParseFiles(
+	"templates/index.html",
+	"templates/bootstrap_base_head.html",
+))
+
+type IndexPageVariables struct {
+	NewBeersToday []chucks.Beer
+	Top5Breweries []string
+}
+
+// END Templates for each page
 
 type BarChart struct {
 	Data []BarChartRow
@@ -34,13 +56,6 @@ type BarChart struct {
 type BarChartRow struct {
 	Name  string
 	Value int
-}
-type WeeklyBeerVariables struct {
-	TopBreweriesJson string
-	TopStylesJson    string
-
-	MostStaleJson    string
-	FastConsumedJson string
 }
 
 type BeerByTime struct {
@@ -261,37 +276,72 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	todayStart, todayEnd := GetStartAndEndOfToday()
-	beers := chucks.GetBeersBetween(c, todayStart, todayEnd)
-
-	// Caress this into a map of Taps -> Beers
-	tapList := make(map[int][]chucks.Beer)
-	for i := 0; i < len(beers); i++ {
-		c.Debugf("Beer %d is %s", beers[i].Tap, beers[i].Name)
-		tapList[int(beers[i].Tap)] = append(tapList[int(beers[i].Tap)], beers[i])
-	}
+	tapList := chucks.GetTapToUniqueBeerList(c, todayStart, todayEnd)
 
 	c.Debugf("Taplist is %d beers long", len(tapList))
 
-	// We know we have 38 taps, TODO: sort this
+	fmt.Fprint(w, "<html><body>")
 	for i := 1; i <= len(tapList); i++ {
-		beers = tapList[i]
-		for j := 0; j < len(beers); j++ {
-			beer := beers[j]
+		beers := tapList[i]
+		beer := beers[0]
+		fmt.Fprintf(w, "Tap %d): %s %s", beer.Tap, strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
 
-			if j == 0 {
-				fmt.Fprintf(w, "Tap %d): %s %s", beer.Tap, strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
+		for j := 1; j < len(beers); j++ {
+			beer = beers[j]
+			fmt.Fprintf(w, ", %s %s", strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
+		}
+		fmt.Fprint(w, "<br />\n")
+	}
+	fmt.Fprint(w, "</body></html>")
+}
+
+func indexPage(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	// New beers for today
+	todayStart, todayEnd := GetStartAndEndOfToday()
+	tapList := chucks.GetTapToUniqueBeerList(c, todayStart, todayEnd)
+
+	var newBeers []chucks.Beer
+
+	for i := 1; i <= len(tapList); i++ {
+		c.Debugf("%v", tapList[i])
+		if len(tapList[i]) > 1 {
+			newBeers = append(newBeers, tapList[i][len(tapList[i])-1])
+		}
+	}
+	// END new beers for today
+
+	// Top breweries for this week
+	weekAgo, today := GetStartAndEndOfWeek()
+	pastWeekBeers := chucks.GetTapToUniqueBeerList(c, weekAgo, today)
+
+	var top5Breweries []string
+
+	// Calculate the top breweries
+	breweryList := make(map[string]int)
+	for i := 1; i <= len(pastWeekBeers); i++ {
+		for j := 0; j < len(pastWeekBeers[i]); j++ {
+			beer := pastWeekBeers[i][j]
+			if _, ok := breweryList[beer.Brewery]; ok {
+				breweryList[beer.Brewery] += 1
 			} else {
-				oldBeer := beers[j-1]
-				if strings.Trim(oldBeer.Name, " ") != strings.Trim(beer.Name, " ") {
-					fmt.Fprintf(w, ", %s %s", strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " "))
-				}
+				breweryList[beer.Brewery] = 1
 			}
 		}
-		fmt.Fprint(w, "\n")
+	}
+	sorted := sortMapByValue(breweryList)
+	for i := 0; i < 5; i++ {
+		top5Breweries = append(top5Breweries, sorted[i].Key)
+	}
+	// END calculate the top breweries
+
+	if err := indexTemplate.Execute(w, IndexPageVariables{newBeers, top5Breweries}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func currentText(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	scrape := scraper.New()
@@ -300,7 +350,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	beers := scrape.BeerList()
 
 	for i := 0; i < len(beers); i++ {
-		fmt.Fprintf(w, "Beer %d: %s\n", beers[i].Tap, beers[i].Brewery)
+		fmt.Fprintf(w, "Beer %d: %s %s\n", beers[i].Tap, beers[i].Brewery, beers[i].Name)
 	}
 }
 

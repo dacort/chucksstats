@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- Generated with d3-generator.com -->
+<html>
+  <head>
+    <title>Chuck's Weekly</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=9">
+    <script src="http://d3js.org/d3.v2.min.js"></script>
+    <style>
+      h4 {
+        text-align: center;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <td>
+          <div id="top_breweries"></div>
+        </td>
+        <td>
+          <div id="top_styles"></div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td>
+          <div id="stale_beer"></div>
+        </td>
+        <td>
+          <div id="fresh_kegs"></div>
+        </td>
+      </tr>
+    </table>
+    <script>
+function renderChart(div, name, data) {
+
+var valueLabelWidth = 40; // space reserved for value labels (right)
+var barHeight = 20; // height of one bar
+var barLabelWidth = 250; // space reserved for bar labels
+var barLabelPadding = 5; // padding between bar and bar labels (left)
+var gridLabelHeight = 5; // space reserved for gridline labels
+var gridChartOffset = 0; // space between start of grid and first bar
+var maxBarWidth = 420; // width of the bar with the max value
+ 
+// accessor functions 
+var barLabel = function(d) { return d['Name']; };
+var barValue = function(d) { return parseFloat(d['Value']); };
+ 
+// scales
+var yScale = d3.scale.ordinal().domain(d3.range(0, data.length)).rangeBands([0, data.length * barHeight]);
+var y = function(d, i) { return yScale(i); };
+var yText = function(d, i) { return y(d, i) + yScale.rangeBand() / 2; };
+var x = d3.scale.linear().domain([0, d3.max(data, barValue)]).range([0, maxBarWidth]);
+// svg container element
+d3.select('#'+div).append("h4")
+  .text(name)
+var chart = d3.select('#'+div).append("svg")
+  .attr('width', maxBarWidth + barLabelWidth + valueLabelWidth)
+  .attr('height', gridLabelHeight + gridChartOffset + data.length * barHeight);
+
+// bar labels
+var labelsContainer = chart.append('g')
+  .attr('transform', 'translate(' + (barLabelWidth - barLabelPadding) + ',' + (gridLabelHeight + gridChartOffset) + ')'); 
+labelsContainer.selectAll('text').data(data).enter().append('text')
+  .attr('y', yText)
+  .attr('stroke', 'none')
+  .attr('fill', 'black')
+  .attr("dy", ".35em") // vertical-align: middle
+  .attr('text-anchor', 'end')
+  .text(barLabel);
+// bars
+var barsContainer = chart.append('g')
+  .attr('transform', 'translate(' + barLabelWidth + ',' + (gridLabelHeight + gridChartOffset) + ')'); 
+barsContainer.selectAll("rect").data(data).enter().append("rect")
+  .attr('y', y)
+  .attr('height', yScale.rangeBand())
+  .attr('width', function(d) { return x(barValue(d)); })
+  .attr('stroke', 'white')
+  .attr('fill', 'steelblue');
+// bar value labels
+barsContainer.selectAll("text").data(data).enter().append("text")
+  .attr("x", function(d) { return x(barValue(d)); })
+  .attr("y", yText)
+  .attr("dx", 3) // padding-left
+  .attr("dy", ".35em") // vertical-align: middle
+  .attr("text-anchor", "start") // text-align: right
+  .attr("fill", "black")
+  .attr("stroke", "none")
+  .text(function(d) { return d3.round(barValue(d), 2); });
+// start line
+barsContainer.append("line")
+  .attr("y1", -gridChartOffset)
+  .attr("y2", yScale.rangeExtent()[1] + gridChartOffset)
+  .style("stroke", "#000");
+
+}
+    </script>
+
+    <script>
+
+      var data = JSON.parse(unescape({{.TopBreweriesJson}}));
+      renderChart("top_breweries", "Top Breweries", data);
+
+      var data = JSON.parse(unescape({{.TopStylesJson}}));
+      renderChart("top_styles", "Top Styles", data);
+
+      var data = JSON.parse(unescape({{.MostStaleJson}}));
+      renderChart("stale_beer", "Stale Beer", data);
+
+      var data = JSON.parse(unescape({{.FastConsumedJson}}));
+      renderChart("fresh_kegs", "Quickest Consumption", data);
+
+    </script>
+  </body>
+</html>
