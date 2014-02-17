@@ -4610,6 +4610,11 @@ a.thumbnail.active {
   background-color: transparent;
   border: 1px solid rgba(0, 0, 0, 0.6);
 }
+.list-group-item {
+  background-color: #32383e;
+/*  background-color: #999AA1;
+  color: black;*/
+}
 .list-group-item:first-child {
   border-top-right-radius: 4px;
   border-top-left-radius: 4px;
@@ -6022,9 +6027,6 @@ legend {
 }
 .jumbotron {
   border: 1px solid rgba(0, 0, 0, 0.6);
-}
-.list-group-item {
-  background-color: #32383e;
 }
 .panel-primary .panel-heading,
 .panel-success .panel-heading,

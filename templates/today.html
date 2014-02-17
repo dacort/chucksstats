@@ -5,9 +5,11 @@
     {{ template "navbar" .}}
     <div class="row">
       <div class="col-md-6 col-md-offset-3">
+
         <ul class="list-group">
+          <li class="list-group-item" style="background-color:lightslategrey;color:black"><strong>Beers on tap today - <span class="text-success">green</span> ones indicate newly on tap.</strong></li>
           {{ range $index, $beers := .TapList}}
-          <li class="list-group-item">Tap {{$index}}) {{ range $beer_index, $beer := $beers }} {{ $beer.FullName }}{{ if last $beer_index $beers }}. {{ else }}, {{ end }}{{ end }}</li>
+          <li class="list-group-item">Tap {{$index}}) {{ range $beer_index, $beer := $beers }}{{ if last $beer_index $beers }}{{ if gt $beer_index 0}}<span class="text-success">{{end}}{{end}}{{ $beer.FullName }}{{ if last $beer_index $beers }}</span>{{end}}{{ if last $beer_index $beers }}. {{ else }}, {{ end }}{{ end }}</li>
           {{ end }}
         </ul>
       </div>

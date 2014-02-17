@@ -65,6 +65,9 @@ var fns = template.FuncMap{
 	"eq": func(a, b string) bool {
 		return a == b
 	},
+	"gt": func(a, b int) bool {
+		return a > b
+	},
 	"last": func(x int, a interface{}) bool {
 		return x == reflect.ValueOf(a).Len()-1
 	},
