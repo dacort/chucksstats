@@ -14,6 +14,7 @@ import (
 	"appengine/datastore"
 
 	"github.com/dacort/chucksstats/chucks"
+	"github.com/dacort/chucksstats/helpers"
 	"github.com/dacort/chucksstats/scraper"
 )
 
@@ -22,7 +23,8 @@ func init() {
 	http.HandleFunc("/current", currentText)
 	http.HandleFunc("/today", beersToday)
 	http.HandleFunc("/update_beers", SaveTheBeer)
-	http.HandleFunc("/thisweek", beersWeekly)
+	http.HandleFunc("/thisweek_old", beersWeekly)
+	http.HandleFunc("/thisweek", beersWeekly2)
 }
 func unescaped(x string) interface{} { return template.HTML(x) }
 
@@ -36,12 +38,26 @@ var weeklyBeerTemplate = template.Must(template.New("weeklybeer.html").Funcs(fns
 	"app/weeklybeer.html",
 ))
 
+var weeklyTemplate = template.Must(template.New("weekly.html").Funcs(fns).ParseFiles(
+	"templates/weekly.html",
+	"templates/bootstrap_base_head.html",
+	"templates/navbar.html",
+	"templates/bootstrap_base_foot.html",
+))
+
 type WeeklyBeerVariables struct {
 	TopBreweriesJson string
 	TopStylesJson    string
 
 	MostStaleJson    string
 	FastConsumedJson string
+
+	Page PageVariables
+}
+
+type WeeklyBeer2Variables struct {
+	TopBreweries BarChart
+	TopStyles    BarChart
 
 	Page PageVariables
 }
@@ -93,8 +109,9 @@ type BarChart struct {
 	Data []BarChartRow
 }
 type BarChartRow struct {
-	Name  string
-	Value int
+	Name       string
+	Value      int
+	Percentage float64
 }
 
 type BeerByTime struct {
@@ -126,30 +143,6 @@ func (b ByFastestConsumption) Less(i, j int) bool {
 type TimeFrame struct {
 	StartTime time.Time
 	EndTime   time.Time
-}
-
-type Pair struct {
-	Key   string
-	Value int
-}
-
-// A slice of Pairs that implements sort.Interface to sort by Value.
-type PairList []Pair
-
-func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p PairList) Len() int           { return len(p) }
-func (p PairList) Less(i, j int) bool { return p[i].Value > p[j].Value }
-
-// A function to turn a map into a PairList, then sort and return it.
-func sortMapByValue(m map[string]int) PairList {
-	p := make(PairList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = Pair{k, v}
-		i += 1
-	}
-	sort.Sort(p)
-	return p
 }
 
 func GetStartAndEndOfToday() (time.Time, time.Time) {
@@ -192,6 +185,50 @@ func GetStartAndEndOfWeek() (time.Time, time.Time) { //[]TimeFrame) {
 	// }
 }
 
+func beersWeekly2(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	weekAgo, today := GetStartAndEndOfWeek()
+
+	topBreweries, topStyles := chucks.GetTopBreweriesAndStyles(c, weekAgo, today, 5)
+
+	var topBreweriesFormatted BarChart
+	var topStylesFormatted BarChart
+	var max float64
+
+	for i := range topBreweries {
+		for key, value := range topBreweries[i] {
+			if i == 0 {
+				max = float64(value)
+			}
+			topBreweriesFormatted.Data = append(
+				topBreweriesFormatted.Data, BarChartRow{
+					key,
+					value,
+					(float64(value) / max) * 100,
+				})
+		}
+	}
+
+	for i := range topStyles {
+		for key, value := range topStyles[i] {
+			if i == 0 {
+				max = float64(value)
+			}
+			topStylesFormatted.Data = append(
+				topStylesFormatted.Data, BarChartRow{
+					key,
+					value,
+					(float64(value) / max) * 100,
+				})
+		}
+	}
+
+	if err := weeklyTemplate.Execute(w, WeeklyBeer2Variables{topBreweriesFormatted, topStylesFormatted, PageVariables{"Weekly Beer", "thisweek"}}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	weekAgo, today := GetStartAndEndOfWeek()
@@ -227,9 +264,9 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 		breweryList[brewery] = len(beers)
 	}
 	breweryData := BarChart{}
-	sorted := sortMapByValue(breweryList)
+	sorted := helpers.SortMapByValue(breweryList)
 	for i := 0; i < 5; i++ {
-		breweryData.Data = append(breweryData.Data, BarChartRow{sorted[i].Key, sorted[i].Value})
+		breweryData.Data = append(breweryData.Data, BarChartRow{sorted[i].Key, sorted[i].Value, 0})
 	}
 	b, _ := json.Marshal(breweryData.Data)
 	topBrewJson := fmt.Sprintf("%s", b)
@@ -241,9 +278,9 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	}
 
 	styleData := BarChart{}
-	sorted = sortMapByValue(styleList)
+	sorted = helpers.SortMapByValue(styleList)
 	for i := 0; i < 5; i++ {
-		styleData.Data = append(styleData.Data, BarChartRow{sorted[i].Key, sorted[i].Value})
+		styleData.Data = append(styleData.Data, BarChartRow{sorted[i].Key, sorted[i].Value, 0})
 	}
 	b, _ = json.Marshal(styleData.Data)
 	topStyleJson := fmt.Sprintf("%s", b)
@@ -279,18 +316,18 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 
 	sort.Sort(ByStale{beerByTimeList})
 	staleBeerData := BarChart{}
-	sorted = sortMapByValue(styleList)
+	sorted = helpers.SortMapByValue(styleList)
 	for i := 0; i < 5; i++ {
-		staleBeerData.Data = append(staleBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours())})
+		staleBeerData.Data = append(staleBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours()), 0})
 	}
 	b, _ = json.Marshal(staleBeerData.Data)
 	staleBeerJson := fmt.Sprintf("%s", b)
 
 	sort.Sort(ByFastestConsumption{beerByTimeList})
 	freshBeerData := BarChart{}
-	sorted = sortMapByValue(styleList)
+	sorted = helpers.SortMapByValue(styleList)
 	for i := 0; i < 5; i++ {
-		freshBeerData.Data = append(freshBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours())})
+		freshBeerData.Data = append(freshBeerData.Data, BarChartRow{beerByTimeList[i].Name, int(beerByTimeList[i].TotalTime.Hours()), 0})
 	}
 	b, _ = json.Marshal(freshBeerData.Data)
 	freshBeerJson := fmt.Sprintf("%s", b)
@@ -305,7 +342,7 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// Print out the top 5 brewerys
-	// sorted := sortMapByValue(breweryList)
+	// sorted := helpers.SortMapByValue(breweryList)
 	// for i := 0; i < 5; i++ {
 	// 	fmt.Fprintf(w, "%s: %d\n", sorted[i].Key, sorted[i].Value)
 	// }
@@ -378,7 +415,7 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	sorted := sortMapByValue(breweryList)
+	sorted := helpers.SortMapByValue(breweryList)
 	for i := 0; i < 5; i++ {
 
 		top5Breweries = append(top5Breweries, map[string]int{sorted[i].Key: sorted[i].Value})

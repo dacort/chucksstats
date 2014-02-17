@@ -6,6 +6,8 @@ import (
 
 	"appengine"
 	"appengine/datastore"
+
+	"github.com/dacort/chucksstats/helpers"
 )
 
 const (
@@ -35,6 +37,18 @@ type Beer struct {
 func (b *Beer) FullName() string {
 	// strings.Trim(beer.Brewery, " "), strings.Trim(beer.Name, " ")
 	return b.Brewery + " " + b.Name
+}
+
+func (b *Beer) BreweryName() string {
+	return strings.Trim(b.Brewery, " ")
+}
+
+func (b *Beer) StyleName() string {
+	if b.Type == "" {
+		return "Unspecified"
+	} else {
+		return b.Type
+	}
 }
 
 func GetBeersBetween(context appengine.Context, startTime time.Time, endTime time.Time) (beers []Beer) {
@@ -91,4 +105,48 @@ func GetTapToUniqueBeerList(context appengine.Context, startTime time.Time, endT
 	}
 
 	return tapMap
+}
+
+// Retrieve the Top N breweries and styles
+// This method is combined so as only to query the database once
+func GetTopBreweriesAndStyles(context appengine.Context, startTime time.Time, endTime time.Time, topN int) (BreweryList []map[string]int, StyleList []map[string]int) {
+	beerList := GetTapToUniqueBeerList(context, startTime, endTime)
+
+	breweryList := make(map[string]int)
+	styleList := make(map[string]int)
+
+	for i := 1; i < len(beerList); i++ {
+		for _, beer := range beerList[i] {
+
+			// Set or increment brewery count
+			if _, ok := breweryList[beer.BreweryName()]; ok {
+				breweryList[beer.BreweryName()] += 1
+			} else {
+				breweryList[beer.BreweryName()] = 1
+			}
+
+			// Set or increment style count
+			if _, ok := styleList[beer.StyleName()]; ok {
+				styleList[beer.StyleName()] += 1
+			} else {
+				styleList[beer.StyleName()] = 1
+			}
+		}
+	}
+
+	// Sort and create the return map
+	sortedBrewery := helpers.SortMapByValue(breweryList)
+	sortedStyle := helpers.SortMapByValue(styleList)
+
+	for i := 0; i < topN; i++ {
+		if i < len(sortedBrewery) {
+			BreweryList = append(BreweryList, map[string]int{sortedBrewery[i].Key: sortedBrewery[i].Value})
+		}
+
+		if i < len(sortedStyle) {
+			StyleList = append(StyleList, map[string]int{sortedStyle[i].Key: sortedStyle[i].Value})
+		}
+	}
+
+	return
 }
