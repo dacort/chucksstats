@@ -55,7 +55,7 @@ var indexTemplate = template.Must(template.New("index.html").Funcs(fns).ParseFil
 
 type IndexPageVariables struct {
 	NewBeersToday []chucks.Beer
-	Top5Breweries []string
+	Top5Breweries []map[string]int
 
 	Page PageVariables
 }
@@ -361,7 +361,7 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 	weekAgo, today := GetStartAndEndOfWeek()
 	pastWeekBeers := chucks.GetTapToUniqueBeerList(c, weekAgo, today)
 
-	var top5Breweries []string
+	var top5Breweries []map[string]int
 
 	// Calculate the top breweries
 	breweryList := make(map[string]int)
@@ -377,8 +377,10 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sorted := sortMapByValue(breweryList)
 	for i := 0; i < 5; i++ {
-		top5Breweries = append(top5Breweries, sorted[i].Key)
+
+		top5Breweries = append(top5Breweries, map[string]int{sorted[i].Key: sorted[i].Value})
 	}
+	// top5Breweries = sorted[0:4]
 	// END calculate the top breweries
 
 	pageVars := IndexPageVariables{

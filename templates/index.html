@@ -7,7 +7,7 @@
 
       <!-- High-level stats -->
       <div class="row">
-        <div class="col-md-4 col-md-offset-1">
+        <div class="col-md-3 col-md-offset-2">
           <div class="panel panel-default">
             <!-- Default panel contents -->
             <div class="panel-heading">
@@ -27,7 +27,7 @@
             </ul>
           </div>
         </div>
-        <div class="col-md-4 col-md-offset-2">
+        <div class="col-md-3 col-md-offset-2">
           <div class="panel panel-default">
             <!-- Default panel contents -->
             <div class="panel-heading">
@@ -37,7 +37,7 @@
             <!-- List group -->
             <ul class="list-group">
               {{ range .Top5Breweries }}
-              <li class="list-group-item">{{ . }}</li>
+              <li class="list-group-item">{{ range $k, $v := . }}{{ $k }}<span class="badge badge-info">{{ $v }}</span>{{ end }}</li>
               {{ end }}
             </ul>
           </div>
