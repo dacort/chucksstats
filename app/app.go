@@ -408,10 +408,10 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 	for i := 1; i <= len(pastWeekBeers); i++ {
 		for j := 0; j < len(pastWeekBeers[i]); j++ {
 			beer := pastWeekBeers[i][j]
-			if _, ok := breweryList[beer.Brewery]; ok {
-				breweryList[beer.Brewery] += 1
+			if _, ok := breweryList[beer.BreweryName()]; ok {
+				breweryList[beer.BreweryName()] += 1
 			} else {
-				breweryList[beer.Brewery] = 1
+				breweryList[beer.BreweryName()] = 1
 			}
 		}
 	}

@@ -115,7 +115,7 @@ func GetTopBreweriesAndStyles(context appengine.Context, startTime time.Time, en
 	breweryList := make(map[string]int)
 	styleList := make(map[string]int)
 
-	for i := 1; i < len(beerList); i++ {
+	for i := 1; i <= len(beerList); i++ {
 		for _, beer := range beerList[i] {
 
 			// Set or increment brewery count
