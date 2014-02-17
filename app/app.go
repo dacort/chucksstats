@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -26,7 +27,12 @@ func init() {
 func unescaped(x string) interface{} { return template.HTML(x) }
 
 // Templates for each page
-var weeklyBeerTemplate = template.Must(template.ParseFiles(
+type PageVariables struct {
+	Title string
+	Tab   string
+}
+
+var weeklyBeerTemplate = template.Must(template.New("weeklybeer.html").Funcs(fns).ParseFiles(
 	"app/weeklybeer.html",
 ))
 
@@ -36,33 +42,49 @@ type WeeklyBeerVariables struct {
 
 	MostStaleJson    string
 	FastConsumedJson string
+
+	Page PageVariables
 }
 
-var indexTemplate = template.Must(template.ParseFiles(
+var indexTemplate = template.Must(template.New("index.html").Funcs(fns).ParseFiles(
 	"templates/index.html",
 	"templates/bootstrap_base_head.html",
+	"templates/navbar.html",
 	"templates/bootstrap_base_foot.html",
 ))
 
 type IndexPageVariables struct {
 	NewBeersToday []chucks.Beer
 	Top5Breweries []string
+
+	Page PageVariables
 }
 
 var fns = template.FuncMap{
 	"join": strings.Join,
+	"eq": func(a, b string) bool {
+		return a == b
+	},
+	"last": func(x int, a interface{}) bool {
+		return x == reflect.ValueOf(a).Len()-1
+	},
 }
-var todayTemplate = template.Must(template.ParseFiles(
+
+var todayTemplate = template.Must(template.New("today.html").Funcs(fns).ParseFiles(
 	"templates/today.html",
 	"templates/bootstrap_base_head.html",
+	"templates/navbar.html",
 	"templates/bootstrap_base_foot.html",
 ))
 
 type TodayPageVariables struct {
 	TapList map[int][]chucks.Beer
+
+	Page PageVariables
 }
 
 // END Templates for each page
+// Maybe use https://wrapbootstrap.com/theme/light-blue-responsive-admin-template-WB0T41TX4 ?
 
 type BarChart struct {
 	Data []BarChartRow
@@ -270,7 +292,7 @@ func beersWeekly(w http.ResponseWriter, r *http.Request) {
 	b, _ = json.Marshal(freshBeerData.Data)
 	freshBeerJson := fmt.Sprintf("%s", b)
 
-	if err := weeklyBeerTemplate.Execute(w, WeeklyBeerVariables{topBrewJson, topStyleJson, staleBeerJson, freshBeerJson}); err != nil {
+	if err := weeklyBeerTemplate.Execute(w, WeeklyBeerVariables{topBrewJson, topStyleJson, staleBeerJson, freshBeerJson, PageVariables{"Weekly Beer", "weeklybeer"}}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
@@ -292,7 +314,11 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 	todayStart, todayEnd := GetStartAndEndOfToday()
 	tapList := chucks.GetTapToUniqueBeerList(c, todayStart, todayEnd)
 
-	if err := todayTemplate.Execute(w, TodayPageVariables{tapList}); err != nil {
+	pageVars := TodayPageVariables{
+		tapList,
+		PageVariables{"Today", "today"},
+	}
+	if err := todayTemplate.Execute(w, pageVars); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	return
@@ -355,7 +381,12 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 	}
 	// END calculate the top breweries
 
-	if err := indexTemplate.Execute(w, IndexPageVariables{newBeers, top5Breweries}); err != nil {
+	pageVars := IndexPageVariables{
+		newBeers,
+		top5Breweries,
+		PageVariables{"Home", "home"},
+	}
+	if err := indexTemplate.Execute(w, pageVars); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

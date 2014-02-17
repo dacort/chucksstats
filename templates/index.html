@@ -2,77 +2,47 @@
 {{template "bootstrap_base_head" .}}
 
   <body>
+    <div class="container">
+      {{ template "navbar" .}}
 
-    <div class="site-wrapper">
-
-      <div class="site-wrapper-inner">
-
-        <div class="cover-container">
-
-          <div class="masthead clearfix">
-            <div class="inner">
-              <h3 class="masthead-brand">Chuck's Stats</h3>
-              <ul class="nav masthead-nav">
-                <li class="active"><a href="#">Home</a></li>
-                <li><a href="/today">Today</a></li>
-                <li><a href="/thisweek">This Week</a></li>
-              </ul>
+      <!-- High-level stats -->
+      <div class="row">
+        <div class="col-md-4 col-md-offset-1">
+          <div class="panel panel-default">
+            <!-- Default panel contents -->
+            <div class="panel-heading">
+              <h3 class="panel-title">Fresh Taps!</h3>
             </div>
-          </div>
-
-          <div class="inner cover">
-            <!-- <div class="row"> -->
-              <div class="col-md-6">
-                <div class="panel panel-default">
-                  <!-- Default panel contents -->
-                  <div class="panel-heading">
-                    <h3 class="panel-title">Fresh Taps!</h3>
-                  </div>
-                  <div class="panel-body">
-                    <p>Beers that have been tapped today.</p>
-                  </div>
-
-                  <!-- List group -->
-                  <ul class="list-group">
-                    {{ range .NewBeersToday }}
-                    <li class="list-group-item">{{ .FullName }}</li>
-                    {{ else }}
-                    <li class="list-group-item">Nothing new. :(</li>
-                    {{ end }}
-                  </ul>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="panel panel-default">
-                  <!-- Default panel contents -->
-                  <div class="panel-heading">
-                    <h3 class="panel-title">Top Breweries This Week!</h3>
-                  </div>
-
-                  <!-- List group -->
-                  <ul class="list-group">
-                    {{ range .Top5Breweries }}
-                    <li class="list-group-item">{{ . }}</li>
-                    {{ end }}
-                  </ul>
-                </div>
-              </div>
-            <!-- </div> -->
-
-
-          </div>
-
-          <div class="mastfoot">
-            <div class="inner">
-              <p>Built for a love of beer, by <a href="https://twitter.com/dacort">@dacort</a>.</p>
+            <div class="panel-body">
+              <p>Beers that have been tapped today.</p>
             </div>
-          </div>
 
+            <!-- List group -->
+            <ul class="list-group">
+              {{ range .NewBeersToday }}
+              <li class="list-group-item">{{ .FullName }}</li>
+              {{ else }}
+              <li class="list-group-item">Nothing new. :(</li>
+              {{ end }}
+            </ul>
+          </div>
         </div>
+        <div class="col-md-4 col-md-offset-2">
+          <div class="panel panel-default">
+            <!-- Default panel contents -->
+            <div class="panel-heading">
+              <h3 class="panel-title">Top Breweries This Week!</h3>
+            </div>
 
+            <!-- List group -->
+            <ul class="list-group">
+              {{ range .Top5Breweries }}
+              <li class="list-group-item">{{ . }}</li>
+              {{ end }}
+            </ul>
+          </div>
+        </div>
       </div>
-
-    </div>
-
+    </div> <!-- .container -->
 
 {{template "bootstrap_base_foot" .}}
