@@ -51,7 +51,8 @@ func (c *Chucks) BeerList() (beers []chucks.Beer) {
 
 	for i := 0; i < len(css_selections); i++ {
 		doc.Find(css_selections[i]).Each(func(i int, s *goquery.Selection) {
-			if s.HasClass("header") {
+			// TODO: What happens when a tap is broken?
+			if s.HasClass("header") || len(s.Text()) < 5 {
 				return
 			}
 			beer := NewBeer(s)
