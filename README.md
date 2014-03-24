@@ -26,3 +26,5 @@ I still have a number of plans for the app.
 * Stats per brewery
 * Top beers per brewery
 * Support for multiple locations (specifically [Chuck's CD](http://www.chuckscd.com/))
+* Cleaned up Scraper code
+* Add caches for chart queries
