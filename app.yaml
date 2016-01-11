@@ -13,3 +13,7 @@ handlers:
 - url: /update_beers
   script: _go_app
   login: admin
+
+- url: /_ah/remote_api
+  script: _go_app
+  login: admin

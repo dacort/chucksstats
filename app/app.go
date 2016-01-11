@@ -12,6 +12,7 @@ import (
 
 	"appengine"
 	"appengine/datastore"
+	_ "appengine/remote_api"
 
 	"github.com/dacort/chucksstats/chucks"
 	"github.com/dacort/chucksstats/helpers"
