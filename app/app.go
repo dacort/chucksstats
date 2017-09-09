@@ -19,7 +19,7 @@ import (
 	"github.com/dacort/chucksstats/scraper"
 )
 
-func init() {
+func Run() {
 	http.HandleFunc("/", indexPage)
 	http.HandleFunc("/current", currentText)
 	http.HandleFunc("/today", beersToday)
@@ -36,14 +36,14 @@ type PageVariables struct {
 }
 
 var weeklyBeerTemplate = template.Must(template.New("weeklybeer.html").Funcs(fns).ParseFiles(
-	"app/weeklybeer.html",
+	"../app/weeklybeer.html",
 ))
 
 var weeklyTemplate = template.Must(template.New("weekly.html").Funcs(fns).ParseFiles(
-	"templates/weekly.html",
-	"templates/bootstrap_base_head.html",
-	"templates/navbar.html",
-	"templates/bootstrap_base_foot.html",
+	"../templates/weekly.html",
+	"../templates/bootstrap_base_head.html",
+	"../templates/navbar.html",
+	"../templates/bootstrap_base_foot.html",
 ))
 
 type WeeklyBeerVariables struct {
@@ -64,10 +64,10 @@ type WeeklyBeer2Variables struct {
 }
 
 var indexTemplate = template.Must(template.New("index.html").Funcs(fns).ParseFiles(
-	"templates/index.html",
-	"templates/bootstrap_base_head.html",
-	"templates/navbar.html",
-	"templates/bootstrap_base_foot.html",
+	"../templates/index.html",
+	"../templates/bootstrap_base_head.html",
+	"../templates/navbar.html",
+	"../templates/bootstrap_base_foot.html",
 ))
 
 type IndexPageVariables struct {
@@ -91,10 +91,10 @@ var fns = template.FuncMap{
 }
 
 var todayTemplate = template.Must(template.New("today.html").Funcs(fns).ParseFiles(
-	"templates/today.html",
-	"templates/bootstrap_base_head.html",
-	"templates/navbar.html",
-	"templates/bootstrap_base_foot.html",
+	"../templates/today.html",
+	"../templates/bootstrap_base_head.html",
+	"../templates/navbar.html",
+	"../templates/bootstrap_base_foot.html",
 ))
 
 type TodayPageVariables struct {
@@ -151,6 +151,9 @@ func GetStartAndEndOfToday() (time.Time, time.Time) {
 	location, _ := time.LoadLocation("America/Los_Angeles")
 	today := time.Now().In(location)
 	tomorrow := time.Now().In(location).Add(time.Duration(24 * time.Hour))
+
+	// They open at 10, so don't show anything until then. The downside of this is that
+	// there will be no results on the /today page between midnight and 10am.
 	startOfDay := fmt.Sprintf("%s 10:00", today.Format("2006-01-02"))
 	endOfDay := fmt.Sprintf("%s 00:00", tomorrow.Format("2006-01-02"))
 
@@ -353,6 +356,7 @@ func beersToday(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	todayStart, todayEnd := GetStartAndEndOfToday()
+	c.Debugf("Getting beers between %s and %s", todayStart, todayEnd)
 	tapList := chucks.GetTapToUniqueBeerList(c, todayStart, todayEnd)
 
 	pageVars := TodayPageVariables{
