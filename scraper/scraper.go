@@ -15,7 +15,7 @@ import (
 	"github.com/dacort/chucksstats/chucks"
 )
 
-var url = "http://chucks85th.com/"
+var url = "http://chucks.jjshanks.net/draft"
 
 type Chucks struct {
 	resp *http.Response
@@ -44,7 +44,7 @@ func (c *Chucks) BeerList() (beers []chucks.Beer) {
 	// Record the current hour at which we recorded this beer
 	recorded := time.Now().UTC()
 	recorded_hour := recorded.Format("2006-01-02T15:04Z")
-	css_selections := []string{"ul#draft_left li", "ul#draft_right li"}
+	css_selections := []string{"#draft_list tr"}
 
 	// Parse the beers
 	doc, _ := goquery.NewDocumentFromResponse(c.resp)
@@ -52,9 +52,11 @@ func (c *Chucks) BeerList() (beers []chucks.Beer) {
 	for i := 0; i < len(css_selections); i++ {
 		doc.Find(css_selections[i]).Each(func(i int, s *goquery.Selection) {
 			// TODO: What happens when a tap is broken?
-			if s.HasClass("header") || len(s.Text()) < 5 {
+			// Skip the header
+			if i == 0 {
 				return
 			}
+
 			beer := NewBeer(s)
 			beer.RecordedAt = recorded
 			beer.RecordedAtHour = recorded_hour
@@ -75,9 +77,9 @@ func NewBeer(s *goquery.Selection) (b chucks.Beer) {
 
 	b.Tap = ExtractInt(parts[1])
 
-	b.GrowlerUSD = ExtractFloat(parts[4])
-	b.PintUSD = ExtractFloat(parts[5])
-	b.ABV = ExtractFloat(parts[6])
+	b.PintUSD = ExtractFloat(parts[4])
+	b.GrowlerUSD = ExtractFloat(parts[5])
+	b.ABV = ExtractFloat(parts[7])
 
 	return b
 }
